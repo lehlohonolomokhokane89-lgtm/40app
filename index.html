@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>4FORTY LIVE Taxi - 90+ Routes</title>
+<meta name="theme-color" content="#FFD700">
+<link rel="manifest" href="data:application/json;base64,eyJuYW1lIjoiNEZPUlRZIn0=">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;font-family:Arial,sans-serif}
+body{background:#000;color:#fff;padding-bottom:80px}
+.header{background:#FFD700;color:#000;padding:14px;text-align:center;font-weight:bold;font-size:19px;position:sticky;top:0;z-index:100}
+.map{height:38vh;background:#111;display:flex;align-items:center;justify-content:center;flex-direction:column;border-bottom:3px solid #FFD700;text-align:center;padding:10px}
+.live-list{padding:10px}
+.card{background:#111;border:1px solid #333;border-left:4px solid #FFD700;padding:12px;margin-bottom:10px;border-radius:8px;display:flex;justify-content:space-between;align-items:center;gap:10px}
+.card.gold{border-left-color:#FFD700;background:#1a1a00;box-shadow:0 0 8px rgba(255,215,0,0.3)}
+.btn{background:#FFD700;color:#000;border:none;padding:10px 14px;border-radius:8px;font-weight:bold;cursor:pointer;font-size:13px}
+.btn-black{background:#000;color:#FFD700;border:1px solid #FFD700}
+.tabs{position:fixed;bottom:0;left:0;right:0;background:#111;display:flex;border-top:2px solid #FFD700}
+.tabs button{flex:1;padding:12px;background:transparent;color:#fff;border:none;font-weight:bold;font-size:11px}
+.badge{background:#FFD700;color:#000;padding:2px 6px;border-radius:4px;font-size:10px;font-weight:bold}
+#pop{position:fixed;bottom:70px;left:10px;right:10px;background:#FFD700;color:#000;padding:15px;border-radius:12px;text-align:center;z-index:9999}
+.admin-box{background:#111;border:1px dashed #FFD700;padding:8px;margin:8px 10px 0;border-radius:8px;font-size:10px;color:#aaa;text-align:center}
+</style>
+</head>
+<body>
+
+<div class="header">4FORTY LIVE TAXI 🇿🇦<br><small style="font-size:10px;font-weight:normal">BOOK = Driver direct • Admin 0796230493 = GOLD R100/month + Jobs R50</small></div>
+
+<div class="map">
+  <b style="color:#FFD700;font-size:20px" id="liveCount">● Loading LIVE...</b>
+  <small style="color:#aaa;margin-top:6px" id="statusText">Connecting to grxigphpzrmfdiaykitk...</small>
+  <div style="margin-top:12px;display:flex;gap:8px">
+    <button class="btn" onclick="goLivePrompt()">🚕 GO LIVE NOW</button>
+    <button class="btn btn-black" onclick="loadLive()">🔄 REFRESH</button>
+  </div>
+</div>
+
+<div class="admin-box">Admin 0796230493 ONLY for R100/month GOLD verification (eWallet) + Verifier Jobs R50 • BOOK opens driver WhatsApp direct</div>
+
+<div class="live-list" id="liveList"></div>
+
+<div id="pop" style="display:none">
+<b>📲 Add 4FORTY to Home Screen?</b><br><span style="font-size:12px">1 tap = LIVE taxis forever</span><br>
+<button id="btnAdd" style="background:#000;color:#FFD700;padding:10px 25px;border:none;border-radius:8px;margin-top:10px;font-weight:bold">ADD NOW</button>
+<button onclick="this.parentElement.style.display='none'" style="background:transparent;border:1px solid #000;padding:8px 12px;border-radius:8px;margin-left:5px">Later</button>
+</div>
+
+<div class="tabs">
+  <button onclick="loadLive()">LIVE<br>MAP</button>
+  <button onclick="verifyGold()">GOLD<br>R100/m</button>
+  <button onclick="applyJob()">JOBS<br>R50</button>
+  <button onclick="goLivePrompt()">GO<br>LIVE</button>
+</div>
+
+<script>
+// === YOUR SUPABASE CONFIG - ALREADY FILLED ===
+const SUPABASE_URL = "https://grxigphpzrmfdiaykitk.supabase.co";
+const SUPABASE_KEY = "PASTE_YOUR_ANON_KEY_HERE"; // <--- GET FROM Supabase → Settings → API → anon public
+// === END CONFIG ===
+
+const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+// PWA install
+let deferred;
+window.addEventListener('beforeinstallprompt', e=>{ e.preventDefault(); deferred=e; document.getElementById('pop').style.display='block'; });
+document.getElementById('btnAdd').addEventListener('click', async()=>{
+  if(deferred){ deferred.prompt(); await deferred.userChoice; document.getElementById('pop').style.display='none'; }
+  else alert('Android: 3 dots > Add to Home Screen\niPhone: Share > Add to Home Screen');
+});
+setTimeout(()=>{ if(!deferred) document.getElementById('pop').style.display='block'; }, 4000);
+
+async function loadLive(){
+  const list = document.getElementById('liveList');
+  const count = document.getElementById('liveCount');
+  const status = document.getElementById('statusText');
+  try{
+    list.innerHTML = '<div style="text-align:center;padding:20px;color:#aaa">Loading LIVE taxis from Supabase...</div>';
+    const { data, error } = await supabaseClient.from('drivers').select('*').eq('is_live', true).order('last_seen', {ascending:false}).limit(50);
+    if(error) throw error;
+    if(!data || data.length===0){
+      count.innerText = '● 0 TAXIS LIVE NOW';
+      status.innerText = 'No taxis LIVE - Be first to GO LIVE';
+      list.innerHTML = '<div style="text-align:center;padding:20px;color:#aaa">No taxis LIVE now.<br>Drivers click GO LIVE NOW to appear here.<br><br><button class="btn" onclick="verifyGold()">Become GOLD R100/month - 0796230493</button></div>';
+      return;
+    }
+    count.innerText = `● ${data.length} TAXIS LIVE NOW`;
+    status.innerText = `Last update: ${new Date().toLocaleTimeString()} | Supabase: grxigphpzrmfdiaykitk`;
+    list.innerHTML = '';
+    data.forEach(d=>{
+      const phone = (d.driver_phone||'').replace(/\D/g,'');
+      const waPhone = phone.startsWith('0')? '27'+phone.substring(1) : phone;
+      const route = d.route || `${d.from_town||'Ngwathe'} → ${d.to_town||'JHB'}`;
+      const plate = d.plate || d.taxi_plate || 'Unknown';
+      const name = d.driver_name || 'Driver';
+      const isGold = d.is_gold || d.is_verified;
+      list.innerHTML += `<div class="card ${isGold?'gold':''}"><div><b>${route} ${isGold?'<span class="badge">GOLD R100/m</span>':''}</b><br><small>${plate} • ${name} • ${d.driver_phone||''} • ${timeAgo(d.last_seen)}</small></div><button class="btn" onclick="bookDriver('${waPhone}','${route}','${plate}','${name}')">BOOK</button></div>`;
+    });
+  }catch(e){
+    count.innerText = '● ERROR LOADING';
+    status.innerText = 'Paste ANON KEY in code';
+    list.innerHTML = `<div style="padding:15px;background:#300;border-radius:8px">Error: ${e.message}<br><br><b>TO FIX:</b><br>1. Go to supabase.com → Project grxigphpzrmfdiaykitk → SQL Editor → Paste table SQL I gave before → Run<br>2. Settings → API → Copy anon public key → Paste in line: SUPABASE_KEY = \"...\"<br>3. Redeploy to Netlify</div>`;
+  }
+}
+function timeAgo(t){ if(!t) return 'now'; const diff=Math.floor((Date.now()-new Date(t).getTime())/1000/60); if(diff<1) return 'just now'; if(diff<60) return `${diff}m ago`; return `${Math.floor(diff/60)}h ago`; }
+function bookDriver(driverPhone, route, plate, driverName){
+  if(!driverPhone || driverPhone.length<9){ alert('Driver phone not available - Contact admin 0796230493'); return; }
+  const msg = `Hi ${driverName}, I saw your taxi LIVE on 4FORTY%0ARoute: ${route}%0APlate: ${plate}%0AI need seats, are you available?%0AFrom: https://4fortyn.netlify.app/`;
+  window.open(`https://wa.me/${driverPhone}?text=${msg}`, '_blank');
+}
+async function goLivePrompt(){
+  const plate = prompt('Enter Taxi Plate (e.g. XYZ 123 FS):'); if(!plate) return;
+  const name = prompt('Driver Name:'); if(!name) return;
+  const phone = prompt('Driver WhatsApp number (e.g. 0721234567):'); if(!phone) return;
+  const route = prompt('Route (e.g. Ngwathe → JHB):','Ngwathe → JHB');
+  const isGoldCheck = confirm('Are you GOLD R100/month? Paid to 0796230493?\n\nOK = YES, I paid GOLD R100/month\nCancel = Not yet, I want to verify');
+  if(!isGoldCheck){ verifyGold(); return; }
+  try{
+    const { error } = await supabaseClient.from('drivers').upsert({ plate: plate, taxi_plate: plate, driver_name: name, driver_phone: phone, route: route, is_live: true, is_gold: true, is_verified: true, last_seen: new Date().toISOString(), from_town: route.split('→')[0]||'Ngwathe', to_town: route.split('→')[1]||'JHB' }, {onConflict:'plate'});
+    if(error) throw error;
+    alert('✅ YOU ARE LIVE NOW on https://4fortyn.netlify.app/\n\nGOLD R100/month active. Passengers BOOK you direct.\nYou stay LIVE 12 hours. Share: tinyurl.com/4forty');
+    loadLive();
+    setInterval(async()=>{ await supabaseClient.from('drivers').update({last_seen:new Date().toISOString()}).eq('plate', plate); }, 5*60*1000);
+  }catch(e){ alert('Error GO LIVE: '+e.message+'\nDid you paste ANON KEY?'); }
+}
+function verifyGold(){
+  const msg = `Hi Admin 4FORTY GOLD R100/month%0A%0APlate: %0ADriver Name: %0ADriver Phone: %0ARank: %0A%0AI sent R100 eWallet to 0796230493 per month + Taxi photo%0AMake me GOLD LIVE on https://4fortyn.netlify.app/`;
+  window.open(`https://wa.me/27796230493?text=${msg}`, '_blank');
+}
+function applyJob(){
+  const msg = `Hi Admin 4FORTY Jobs%0AName: %0ATown: %0ARank: %0AI want VERIFIER job R50 per taxi%0AForm: https://tinyurl.com/4forty-verifier%0Ahttps://4fortyn.netlify.app/`;
+  window.open(`https://wa.me/27796230493?text=${msg}`, '_blank');
+}
+loadLive(); setInterval(loadLive, 30000);
+</script>
+</body>
+</html>
